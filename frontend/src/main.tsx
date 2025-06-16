@@ -5,13 +5,16 @@ import App from './App.tsx'
 import Footer from "./components/Footer"
 import { Header } from "./components/Header"
 import { BrowserRouter } from "react-router-dom"
+import { ToastProvider } from './lib/use-toast.tsx'
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>
-        <BrowserRouter>
-            <Header />
-            <App />
-            <Footer />
-        </BrowserRouter>
+        <ToastProvider>
+            <BrowserRouter>
+                <Header />
+                <App />
+                <Footer />
+            </BrowserRouter>
+        </ToastProvider>
     </StrictMode>,
 )
