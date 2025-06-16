@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import type { FileUploadRequest } from '../types/index';
+import type { FileUploadRequest } from '../types/index.js';
 
 export const handleFileUpload = async (
   req: Request,
