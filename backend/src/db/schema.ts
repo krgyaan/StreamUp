@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, jsonb, uuid } from "drizzle-orm/pg-core";
 
 export const jobs = pgTable("jobs", {
   id: serial("id").primaryKey(),
@@ -19,4 +19,38 @@ export const results = pgTable("results", {
   error: text("error"),
   rowHash: text("row_hash"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const fileUploads = pgTable('file_uploads', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  originalName: text('original_name').notNull(),
+  mimeType: text('mime_type').notNull(),
+  size: integer('size').notNull(),
+  status: text('status').notNull().default('pending'),
+  totalRows: integer('total_rows'),
+  processedRows: integer('processed_rows').default(0),
+  errorCount: integer('error_count').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const processingErrors = pgTable('processing_errors', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fileUploadId: uuid('file_upload_id').references(() => fileUploads.id).notNull(),
+  chunkIndex: integer('chunk_index').notNull(),
+  rowNumber: integer('row_number').notNull(),
+  errorMessage: text('error_message').notNull(),
+  rowData: jsonb('row_data').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const fileChunks = pgTable('file_chunks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fileUploadId: uuid('file_upload_id').references(() => fileUploads.id).notNull(),
+  chunkIndex: integer('chunk_index').notNull(),
+  status: text('status').notNull().default('pending'),
+  rowCount: integer('row_count').notNull(),
+  errorCount: integer('error_count').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });

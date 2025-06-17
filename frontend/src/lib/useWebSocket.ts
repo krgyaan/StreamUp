@@ -1,70 +1,98 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-export interface WebSocketMessage {
-  type: string;
+interface WebSocketMessage {
+  type: 'file_progress' | 'chunk_progress' | 'error';
+  fileUploadId: string;
   data: any;
 }
 
-export const useWebSocket = (
-  channel: string,
-  onMessage?: (data: any) => void
-) => {
+interface UseWebSocketProps {
+  fileUploadId?: string;
+  onMessage?: (message: WebSocketMessage) => void;
+}
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
+
+export const useWebSocket = ({ fileUploadId, onMessage }: UseWebSocketProps) => {
   const [isConnected, setIsConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const onMessageRef = useRef(onMessage);
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Update the ref when onMessage changes
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
+
+  const connect = () => {
+    if (!fileUploadId) return;
+
+    try {
+      const ws = new WebSocket(`ws://localhost:8080`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setIsConnected(true);
+        setError(null);
+        retryCountRef.current = 0;
+        console.log('WebSocket connected');
+
+        // Subscribe to file updates
+        ws.send(JSON.stringify({
+          type: 'subscribe',
+          fileUploadId
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message: WebSocketMessage = JSON.parse(event.data);
+          onMessageRef.current?.(message);
+        } catch (err) {
+          console.error('Error parsing WebSocket message:', err);
+        }
+      };
+
+      ws.onerror = (event) => {
+        setError('WebSocket connection error');
+        console.error('WebSocket error:', event);
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+        console.log('WebSocket disconnected');
+
+        // Attempt to reconnect if we haven't exceeded max retries
+        if (retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current += 1;
+          retryTimeoutRef.current = setTimeout(connect, RETRY_DELAY);
+        }
+      };
+    } catch (err) {
+      console.error('Error creating WebSocket:', err);
+      setError('Failed to create WebSocket connection');
+    }
+  };
 
   useEffect(() => {
-    // For now, simulate WebSocket connection since we don't have a backend
-    setIsConnected(true);
-
-    // Simulate receiving messages for demo purposes
-    const simulateMessages = () => {
-      if (channel === 'upload-progress' && onMessage) {
-        // Simulate progress updates
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += Math.random() * 20;
-          if (progress >= 100) {
-            progress = 100;
-            clearInterval(interval);
-          }
-
-          const mockData = {
-            jobId: 'mock-job-id',
-            stage: progress < 25 ? 'uploading' : progress < 50 ? 'parsing' : progress < 100 ? 'processing' : 'complete',
-            progress,
-            totalRows: 1000000,
-            processedRows: Math.floor((progress / 100) * 1000000),
-            message: progress < 25 ? 'Uploading file...' : progress < 50 ? 'Parsing CSV...' : progress < 100 ? 'Processing rows...' : 'Complete!'
-          };
-
-          setLastMessage(mockData);
-          onMessage(mockData);
-
-          if (progress >= 100) {
-            clearInterval(interval);
-          }
-        }, 1000);
-
-        return () => clearInterval(interval);
-      }
-    };
-
-    const cleanup = simulateMessages();
+    connect();
 
     return () => {
-      setIsConnected(false);
-      if (cleanup) cleanup();
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
-  }, [channel, onMessage]);
-
-  const sendMessage = useCallback((message: WebSocketMessage) => {
-    // Placeholder for sending messages
-    console.log('Sending message:', message);
-  }, []);
+  }, [fileUploadId]);
 
   return {
     isConnected,
-    lastMessage,
-    sendMessage
+    error
   };
 };

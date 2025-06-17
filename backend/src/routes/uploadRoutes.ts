@@ -1,105 +1,84 @@
-import express, { Request, Response } from 'express';
-import multer from 'multer';
-import path from 'path';
-import { processFile, chunkingQueue, processingQueue } from '../services/fileProcessor.js';
+import { Router, Request, Response } from 'express';
+import { upload } from '../config/multer.js';
+import db from '../db/index.js';
+import { fileUploads, processingErrors } from '../db/schema.js';
+import { fileChunkQueue } from '../queues/config.js';
+import { eq } from 'drizzle-orm';
 
-const router = express.Router();
+const router = Router();
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+router.post('/upload', upload.single('file'), async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
     }
+
+    // Create file upload record
+    const [fileUpload] = await db.insert(fileUploads)
+      .values({
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+        status: 'pending'
+      })
+      .returning();
+
+    // Queue file for chunking
+    await fileChunkQueue.add('chunk-file', {
+      fileUploadId: fileUpload.id,
+      filePath: req.file.path,
+      mimeType: req.file.mimetype
+    });
+
+    res.json({
+      success: true,
+      fileUploadId: fileUpload.id,
+      message: 'File uploaded successfully and queued for processing'
+    });
+  } catch (error) {
+    console.error('Error handling file upload:', error);
+    res.status(500).json({ error: 'Error processing file upload' });
+  }
 });
 
-const upload = multer({
-    storage,
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = ['.csv', '.xlsx'];
-        const ext = path.extname(file.originalname).toLowerCase();
-        if (allowedTypes.includes(ext)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Invalid file type. Only CSV and XLSX files are allowed.'));
-        }
-    },
-    limits: {
-        fileSize: 100 * 1024 * 1024, // 100MB limit
+router.get('/status/:fileUploadId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { fileUploadId } = req.params;
+
+    const fileUpload = await db.select().from(fileUploads).where(eq(fileUploads.id, fileUploadId)).limit(1);
+
+    if (!fileUpload[0]) {
+      res.status(404).json({ error: 'File upload not found' });
+      return;
     }
+
+    res.json({
+      status: fileUpload[0].status,
+      totalRows: fileUpload[0].totalRows,
+      processedRows: fileUpload[0].processedRows,
+      errorCount: fileUpload[0].errorCount,
+      progress: fileUpload[0].totalRows && fileUpload[0].processedRows
+        ? Math.round((fileUpload[0].processedRows / fileUpload[0].totalRows) * 100)
+        : 0
+    });
+  } catch (error) {
+    console.error('Error fetching file status:', error);
+    res.status(500).json({ error: 'Error fetching file status' });
+  }
 });
 
-// Upload endpoint
-router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
+router.get('/errors/:fileUploadId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { fileUploadId } = req.params;
 
-        const fileInfo = {
-            filename: req.file.filename,
-            path: req.file.path,
-            size: req.file.size,
-            mimetype: req.file.mimetype
-        };
+    const errors = await db.select().from(processingErrors).where(eq(processingErrors.fileUploadId, fileUploadId));
 
-        // Start processing the file
-        const jobId = await processFile(fileInfo);
-
-        res.json({
-            message: 'File uploaded successfully',
-            jobId,
-            fileInfo
-        });
-    } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({
-            error: 'Error processing file',
-            details: error instanceof Error ? error.message : 'Unknown error'
-        });
-    }
-});
-
-// Job status endpoint
-router.get('/job/:jobId', async (req: Request, res: Response) => {
-    try {
-        const { jobId } = req.params;
-
-        // Get chunking job status
-        const chunkingJob = await chunkingQueue.getJob(jobId);
-        const chunkingStatus = chunkingJob ? {
-            status: await chunkingJob.getState(),
-            progress: await chunkingJob.progress,
-            result: chunkingJob.returnvalue,
-            error: chunkingJob.failedReason
-        } : null;
-
-        // Get all processing jobs for this file
-        const processingJobs = await processingQueue.getJobs(['active', 'waiting', 'completed', 'failed']);
-        const fileProcessingJobs = processingJobs.filter(job => job.data.jobId === jobId);
-
-        const processingStatus = fileProcessingJobs.map(job => ({
-            chunkIndex: job.data.chunkIndex,
-            status: job.getState(),
-            progress: job.progress,
-            error: job.failedReason
-        }));
-
-        res.json({
-            jobId,
-            chunking: chunkingStatus,
-            processing: processingStatus
-        });
-    } catch (error) {
-        console.error('Error getting job status:', error);
-        res.status(500).json({
-            error: 'Error getting job status',
-            details: error instanceof Error ? error.message : 'Unknown error'
-        });
-    }
+    res.json(errors);
+  } catch (error) {
+    console.error('Error fetching processing errors:', error);
+    res.status(500).json({ error: 'Error fetching processing errors' });
+  }
 });
 
 export default router;

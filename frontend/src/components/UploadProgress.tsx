@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader, CheckCircle } from 'lucide-react';
@@ -26,14 +26,18 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
         message: 'Initializing upload...'
     });
 
-    const { isConnected } = useWebSocket('upload-progress', (data) => {
-        if (data.jobId === jobId) {
-            setProgressData(data);
-
-            if (data.stage === 'complete') {
-                setTimeout(onComplete, 2000); // Small delay to show completion
+    const handleMessage = useCallback((message: any) => {
+        if (message.fileUploadId === jobId) {
+            setProgressData(message.data);
+            if (message.data.stage === 'complete') {
+                setTimeout(onComplete, 2000);
             }
         }
+    }, [jobId, onComplete]);
+
+    const { isConnected } = useWebSocket({
+        fileUploadId: jobId,
+        onMessage: handleMessage
     });
 
     const getStageText = (stage: string) => {
@@ -84,7 +88,7 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
                 <Card>
                     <CardContent className="p-4 text-center">
                         <div className="text-2xl font-bold text-blue-600">
-                            {progressData.totalRows.toLocaleString()}
+                            {(progressData.totalRows ?? 0).toLocaleString()}
                         </div>
                         <div className="text-sm text-gray-600">Total Rows</div>
                     </CardContent>
@@ -93,7 +97,7 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
                 <Card>
                     <CardContent className="p-4 text-center">
                         <div className="text-2xl font-bold text-green-600">
-                            {progressData.processedRows.toLocaleString()}
+                            {(progressData.processedRows ?? 0).toLocaleString()}
                         </div>
                         <div className="text-sm text-gray-600">Processed</div>
                     </CardContent>
@@ -101,7 +105,7 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
             </div>
 
             {/* Processing Rate */}
-            {progressData.stage === 'processing' && progressData.processedRows > 0 && (
+            {progressData.stage === 'processing' && (progressData.processedRows ?? 0) > 0 && (
                 <Card>
                     <CardContent className="p-4">
                         <div className="text-center">
@@ -109,7 +113,7 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
                                 Processing Rate
                             </div>
                             <div className="text-sm text-gray-600 mt-1">
-                                ~{Math.round(progressData.processedRows / 60)} rows/second
+                                ~{Math.round((progressData.processedRows ?? 0) / 60)} rows/second
                             </div>
                         </div>
                     </CardContent>

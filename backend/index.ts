@@ -1,7 +1,12 @@
 import express from 'express';
 import cors from 'cors';
-import * as dotenv from 'dotenv';
-import uploadRoutes from "./src/routes/uploadRoutes.js";
+import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { fileChunkWorker } from './src/queues/fileChunkProcessor.js';
+import { dataProcessingWorker } from './src/queues/dataProcessor.js';
+import uploadRouter from './src/routes/uploadRoutes.js';
+import WebSocketService from './src/services/websocketService.js';
+import { setWebSocketService } from './src/queues/fileChunkProcessor.js';
 import db from "./src/db/index.js"
 import { sql } from 'drizzle-orm';
 
@@ -9,12 +14,15 @@ import { sql } from 'drizzle-orm';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const server = createServer(app);
+const port = process.env.PORT || 4000;
+
+// Initialize WebSocket service
+const wsService = new WebSocketService(server);
+setWebSocketService(wsService);
 
 // Middleware
-app.use(cors({
-    origin: 'http://localhost:5173',
-  }));
+app.use(cors());
 app.use(express.json());
 
 // Test database connection
@@ -39,10 +47,29 @@ app.get('/api/test-db', async (req, res) => {
     }
 });
 
-app.use('/api', uploadRoutes);
+// Routes
+app.use('/api', uploadRouter);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something broke!' });
+});
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port http://localhost:${PORT}`);
-  console.log('Database connection pool initialized');
+server.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received. Closing workers...');
+  await fileChunkWorker.close();
+  await dataProcessingWorker.close();
+  process.exit(0);
 });

@@ -3,18 +3,22 @@ import { default as axios } from 'axios';
 // Update this to match your backend URL and port
 const baseUrl = 'http://localhost:8080/api';
 
+interface UploadResponse {
+  success: boolean;
+  fileUploadId: string;
+  message: string;
+}
+
 export const uploadService = {
   uploadFile: async (
     file: File,
     onProgress?: (progress: number) => void
-  ): Promise<string> => {
+  ): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
     try {
-      const response = await axios.post(`${baseUrl}/upload`, formData, {
+      const response = await axios.post<UploadResponse>(`${baseUrl}/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -32,16 +36,7 @@ export const uploadService = {
         throw new Error(`Server responded with status ${response.status}`);
       }
 
-      // If you're still simulating, keep this
-    //   return new Promise((resolve) => {
-    //     setTimeout(() => {
-    //       if (onProgress) onProgress(100);
-    //       resolve(jobId);
-    //     }, 2000);
-    //   });
-
-      // When ready for production, use this instead:
-      return response.data.jobId || jobId;
+      return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 404) {

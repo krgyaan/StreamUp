@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/lib/use-toast';
 import { uploadService } from '@/services/uploadService';
+import { ProcessingProgress } from './ProcessingProgress';
 
 interface FileUploadProps {
     onUploadStart: (jobId: string) => void;
@@ -14,8 +15,9 @@ interface FileUploadProps {
 interface FileUploadItem {
     file: File;
     progress: number;
-    status: 'pending' | 'uploading' | 'complete' | 'error';
+    status: 'pending' | 'uploading' | 'complete' | 'error' | 'processing';
     jobId?: string;
+    fileUploadId?: string;
     error?: string;
 }
 
@@ -107,20 +109,25 @@ const FileUpload = ({ onUploadStart }: FileUploadProps) => {
                 ));
 
                 try {
-                    const jobId = await uploadService.uploadFile(fileItem.file, (progress) => {
+                    const response = await uploadService.uploadFile(fileItem.file, (progress) => {
                         setFiles(prev => prev.map((item, index) =>
                             index === i ? { ...item, progress } : item
                         ));
                     });
 
-                    // Update file status to complete
+                    // Update file status to processing with fileUploadId
                     setFiles(prev => prev.map((item, index) =>
-                        index === i ? { ...item, status: 'complete' as const, jobId } : item
+                        index === i ? {
+                            ...item,
+                            status: 'processing' as const,
+                            jobId: response.fileUploadId,
+                            fileUploadId: response.fileUploadId
+                        } : item
                     ));
 
                     // Notify parent of first successful upload
                     if (i === 0) {
-                        onUploadStart(jobId);
+                        onUploadStart(response.fileUploadId);
                     }
 
                 } catch (err) {
@@ -131,10 +138,10 @@ const FileUpload = ({ onUploadStart }: FileUploadProps) => {
                 }
             }
 
-            const completedFiles = files.filter(f => f.status === 'complete').length;
+            const completedFiles = files.filter(f => f.status === 'processing' || f.status === 'complete').length;
             toast({
                 title: "Upload Complete",
-                description: `${completedFiles} file(s) processed successfully`,
+                description: `${completedFiles} file(s) queued for processing`,
             });
 
         } catch (err) {
@@ -174,6 +181,7 @@ const FileUpload = ({ onUploadStart }: FileUploadProps) => {
             case 'error':
                 return <AlertCircle className="h-5 w-5 text-red-500" />;
             case 'uploading':
+            case 'processing':
                 return <Upload className="h-5 w-5 text-blue-500 animate-pulse" />;
             default:
                 return null;
@@ -254,6 +262,15 @@ const FileUpload = ({ onUploadStart }: FileUploadProps) => {
                                 {fileItem.status === 'error' && fileItem.error && (
                                     <div className="text-xs text-red-600 mt-2">
                                         Error: {fileItem.error}
+                                    </div>
+                                )}
+
+                                {fileItem.status === 'processing' && fileItem.fileUploadId && (
+                                    <div className="mt-2">
+                                        <ProcessingProgress
+                                            fileUploadId={fileItem.fileUploadId}
+                                            fileName={fileItem.file.name}
+                                        />
                                     </div>
                                 )}
 
