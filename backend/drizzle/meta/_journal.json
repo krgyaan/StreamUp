@@ -15,6 +15,13 @@
       "when": 1750177354003,
       "tag": "0001_wealthy_venom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1750190062167,
+      "tag": "0002_busy_freak",
+      "breakpoints": true
     }
   ]
 }
