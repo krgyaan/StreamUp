@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import type { FileUploadRequest } from '../types/index.js';
 import db from '../db/index.js';
 import { fileUploads, processingErrors } from '../db/schema.js';
-import { fileProcessingQueue } from '../queues/config.js';
+import { fileUploadQueue } from '../queues/config.js';
 import { eq } from 'drizzle-orm';
 
 export const handleFileUpload = async (
@@ -40,10 +40,12 @@ export const handleFileUpload = async (
     console.log(`[UploadController] File upload record created with ID: ${newFileUpload.id}.`);
 
     // Add job to the file processing queue
-    await fileProcessingQueue.add('process-file-chunking', {
+    await fileUploadQueue.add('upload-file', {
       fileUploadId: newFileUpload.id,
       filePath: path,
       mimeType: mimetype,
+      originalName: originalname,
+      size: size,
     });
     console.log(`[UploadController] File ${newFileUpload.id} queued for processing.`);
 

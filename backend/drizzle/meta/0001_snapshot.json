@@ -1,6 +1,6 @@
 {
-  "id": "b19748f5-6c44-43d7-bbaf-532bf3515676",
-  "prevId": "c4c8da88-1d43-466c-96a5-76abf6b3ff26",
+  "id": "16ee82c5-492b-4189-9ad8-fb4f104e24ea",
+  "prevId": "77d65901-bd9a-46b3-b422-0f41e4e934f9",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -168,13 +168,13 @@
           "name": "chunk_index",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "row_number": {
           "name": "row_number",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "error_message": {
           "name": "error_message",
@@ -186,7 +186,19 @@
           "name": "row_data",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "job_name": {
+          "name": "job_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_source": {
+          "name": "error_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",

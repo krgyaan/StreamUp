@@ -1,7 +1,7 @@
 import { Queue, Worker, Job } from 'bullmq';
-import { readFile, createReadStream } from 'fs';
+import { createReadStream } from 'fs';
 import { createWriteStream } from 'fs';
-import { mkdir, unlink } from 'fs/promises';
+import { mkdir, unlink, readFile } from 'fs/promises';
 import path from 'path';
 import { parse } from 'csv-parse';
 import { Readable } from 'stream';
@@ -103,7 +103,7 @@ const chunkingWorker = new Worker<ChunkingJobData>('file-chunking', async (job) 
 
         if (rows.length >= CHUNK_SIZE) {
             const chunkPath = path.join(CHUNKS_DIR, `${jobId}-chunk-${chunkIndex}.json`);
-            await createWriteStream(chunkPath).write(JSON.stringify(rows));
+            createWriteStream(chunkPath).write(JSON.stringify(rows));
 
             // Add chunk to processing queue
             await processingQueue.add('process-chunk', {
@@ -127,7 +127,7 @@ const chunkingWorker = new Worker<ChunkingJobData>('file-chunking', async (job) 
     // Process remaining rows
     if (rows.length > 0) {
         const chunkPath = path.join(CHUNKS_DIR, `${jobId}-chunk-${chunkIndex}.json`);
-        await createWriteStream(chunkPath).write(JSON.stringify(rows));
+        createWriteStream(chunkPath).write(JSON.stringify(rows));
 
         await processingQueue.add('process-chunk', {
             jobId,

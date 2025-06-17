@@ -1,89 +1,9 @@
 {
-  "id": "c4c8da88-1d43-466c-96a5-76abf6b3ff26",
+  "id": "77d65901-bd9a-46b3-b422-0f41e4e934f9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.file_chunks": {
-      "name": "file_chunks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "file_upload_id": {
-          "name": "file_upload_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "chunk_index": {
-          "name": "chunk_index",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "row_count": {
-          "name": "row_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "error_count": {
-          "name": "error_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "file_chunks_file_upload_id_file_uploads_id_fk": {
-          "name": "file_chunks_file_upload_id_file_uploads_id_fk",
-          "tableFrom": "file_chunks",
-          "tableTo": "file_uploads",
-          "columnsFrom": [
-            "file_upload_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.file_uploads": {
       "name": "file_uploads",
       "schema": "",
@@ -363,6 +283,87 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stores": {
+      "name": "stores",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "store_name": {
+          "name": "store_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_address": {
+          "name": "store_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "city_name": {
+          "name": "city_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "region_name": {
+          "name": "region_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retailer_name": {
+          "name": "retailer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_type": {
+          "name": "store_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_longitude": {
+          "name": "store_longitude",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_latitude": {
+          "name": "store_latitude",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
