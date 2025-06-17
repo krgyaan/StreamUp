@@ -8,6 +8,24 @@ interface UploadResponse {
   message: string;
 }
 
+interface JobSummary {
+  jobId: string;
+  status: 'completed' | 'failed' | 'partial';
+  totalRows: number;
+  successfulRows: number;
+  failedRows: number;
+  duration: number;
+  startTime: string;
+  endTime: string;
+  errors: Array<{
+    row: number;
+    error: string;
+    data: string;
+  }>;
+  fileName: string;
+  fileSize: number;
+}
+
 export const uploadService = {
   uploadFile: async (
     file: File,
@@ -44,6 +62,30 @@ export const uploadService = {
         throw new Error(`Upload failed: ${error.response?.data?.message || error.message}`);
       }
       throw new Error('Upload failed: An unexpected error occurred');
+    }
+  },
+
+  getJobSummary: async (jobId: string): Promise<JobSummary> => {
+    try {
+      const response = await axios.get<JobSummary>(`${baseUrl}/summary/${jobId}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || error.message);
+      }
+      throw new Error('Failed to fetch job summary');
+    }
+  },
+
+  getAllJobSummaries: async (): Promise<JobSummary[]> => {
+    try {
+      const response = await axios.get<JobSummary[]>(`${baseUrl}/jobs`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || error.message);
+      }
+      throw new Error('Failed to fetch job summaries');
     }
   },
 };

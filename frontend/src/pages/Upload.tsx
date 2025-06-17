@@ -1,12 +1,9 @@
-
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import FileUpload from '@/components/FileUpload';
 import UploadProgress from '@/components/UploadProgress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Upload = () => {
-    const navigate = useNavigate();
     const [uploadJob, setUploadJob] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -17,10 +14,6 @@ const Upload = () => {
 
     const handleUploadComplete = () => {
         setIsUploading(false);
-        // Navigate to progress page with job ID
-        if (uploadJob) {
-            navigate(`/progress/${uploadJob}`);
-        }
     };
 
     return (

@@ -1,4 +1,3 @@
-
 import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,9 +37,17 @@ const Index = () => {
                         <Button
                             onClick={() => navigate('/upload')}
                             size="lg"
-                            className="bg-primary hover:bg-primary/70 text-lg px-8 py-3 cursor-pointer "
+                            className="bg-primary hover:bg-primary/70 text-lg px-8 py-3 cursor-pointer"
                         >
                             Get Started
+                        </Button>
+                        <Button
+                            onClick={() => navigate('/store')}
+                            size="lg"
+                            variant="outline"
+                            className="text-lg px-8 py-3 cursor-pointer"
+                        >
+                            View Jobs
                         </Button>
                     </div>
                 </div>

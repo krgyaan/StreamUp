@@ -3,18 +3,17 @@ import { parse } from 'csv-parse';
 import XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
-import { redis, QUEUE_NAMES, fileUploadQueue, fileChunkingQueue, dataProcessingQueue } from './config.js';
+import { redis, QUEUE_NAMES, fileChunkingQueue, dataProcessingQueue } from './config.js';
 import db from '../db/index.js';
 import { fileUploads, stores, processingErrors } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
-import { validate } from 'uuid';
+import { eq, sql } from 'drizzle-orm';
 import { existsSync } from 'fs';
 import { readFile, unlink } from 'fs/promises';
 
 const CHUNK_SIZE = 1000;
 const TEMP_DIR = path.join(process.cwd(), 'temp');
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
-const LOCK_TTL = 30000; // 30 seconds lock TTL
+const LOCK_TTL = 30000;
 
 // Ensure temp directory exists
 if (!fs.existsSync(TEMP_DIR)) {
@@ -448,22 +447,15 @@ dataProcessingWorker.on('error', (err) => {
 });
 
 async function updateFileUploadProcessedRowsAndErrors(fileUploadId: string, processedRows: number, errorCount: number) {
-  console.log(`[DataProcessingWorker] Fetching current fileUpload record for ${fileUploadId} to update processed rows and errors.`);
-  const [fileUpload] = await db.select().from(fileUploads).where(eq(fileUploads.id, fileUploadId));
-
-  if (fileUpload) {
-    console.log(`[DataProcessingWorker] Current processedRows for ${fileUploadId}: ${fileUpload.processedRows}, errorCount: ${fileUpload.errorCount}`);
-    await db.update(fileUploads)
-      .set({
-        processedRows: (fileUpload.processedRows || 0) + processedRows,
-        errorCount: (fileUpload.errorCount || 0) + errorCount,
-        updatedAt: new Date()
-      })
-      .where(eq(fileUploads.id, fileUploadId));
-    console.log(`[DataProcessingWorker] Updated fileUpload ${fileUploadId}: processedRows: ${(fileUpload.processedRows || 0) + processedRows}, errorCount: ${(fileUpload.errorCount || 0) + errorCount}`);
-  } else {
-    console.warn(`[DataProcessingWorker] File upload record not found for ID: ${fileUploadId}`);
-  }
+  console.log(`[DataProcessingWorker] Atomically incrementing processedRows and errorCount for ${fileUploadId} by ${processedRows}, ${errorCount}`);
+  await db.execute(
+    sql`UPDATE file_uploads
+        SET processed_rows = processed_rows + ${processedRows},
+            error_count = error_count + ${errorCount},
+            updated_at = NOW()
+        WHERE id = ${fileUploadId}`
+  );
+  console.log(`[DataProcessingWorker] Atomic update complete for ${fileUploadId}.`);
 }
 
 export async function stopAllQueues() {

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Download, FileText, AlertCircle } from 'lucide-react';
+import { uploadService } from '@/services/uploadService';
 
 interface SummaryReportProps {
     jobId: string;
@@ -28,30 +29,21 @@ interface JobSummary {
 
 const SummaryReport = ({ jobId }: SummaryReportProps) => {
     const [summary, setSummary] = useState<JobSummary | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Simulate loading summary data
-        setTimeout(() => {
-            setSummary({
-                jobId,
-                status: 'completed',
-                totalRows: 1000000,
-                successfulRows: 995000,
-                failedRows: 5000,
-                duration: 127,
-                startTime: new Date(Date.now() - 127000).toISOString(),
-                endTime: new Date().toISOString(),
-                fileName: 'large_dataset.csv',
-                fileSize: 52428800, // 50MB
-                errors: [
-                    { row: 1500, error: 'Invalid email format', data: 'john@invalid-email' },
-                    { row: 2300, error: 'Missing required field: phone', data: 'John Doe,john@email.com,' },
-                    { row: 4500, error: 'Invalid date format', data: '2023-13-45' },
-                    { row: 7800, error: 'Duplicate entry', data: 'user123@email.com' },
-                    { row: 9200, error: 'Invalid phone number', data: '123-invalid-phone' }
-                ]
+        setLoading(true);
+        setError(null);
+        uploadService.getJobSummary(jobId)
+            .then(data => {
+                setSummary(data);
+                setLoading(false);
+            })
+            .catch(err => {
+                setError(err.message || 'Failed to load summary');
+                setLoading(false);
             });
-        }, 1000);
     }, [jobId]);
 
     const formatFileSize = (bytes: number) => {
@@ -85,7 +77,7 @@ const SummaryReport = ({ jobId }: SummaryReportProps) => {
         }
     };
 
-    if (!summary) {
+    if (loading) {
         return (
             <Card>
                 <CardContent className="p-8 text-center">
@@ -94,6 +86,19 @@ const SummaryReport = ({ jobId }: SummaryReportProps) => {
                 </CardContent>
             </Card>
         );
+    }
+    if (error) {
+        return (
+            <Card>
+                <CardContent className="p-8 text-center text-red-600">
+                    <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                    <p>{error}</p>
+                </CardContent>
+            </Card>
+        );
+    }
+    if (!summary) {
+        return null;
     }
 
     return (
@@ -218,18 +223,6 @@ const SummaryReport = ({ jobId }: SummaryReportProps) => {
                     </CardContent>
                 </Card>
             )}
-
-            {/* Actions */}
-            <div className="flex gap-4">
-                <Button className="flex items-center space-x-2">
-                    <Download className="h-4 w-4" />
-                    <span>Download Report</span>
-                </Button>
-                <Button variant="outline" className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4" />
-                    <span>View Details</span>
-                </Button>
-            </div>
         </div>
     );
 };

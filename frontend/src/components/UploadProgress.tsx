@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader, CheckCircle, XCircle } from 'lucide-react';
@@ -58,32 +58,24 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
                     const totalProcessed = newProcessedRows + newErrorCount;
                     const overallProgress = prev.totalRows > 0 ? (totalProcessed / prev.totalRows) * 100 : 0;
 
+                    let newStage = prev.stage;
+                    let newMessage = `Processing data: ${newProcessedRows} rows processed, ${newErrorCount} errors`;
                     if (prev.stage === 'chunking') {
-                        // Once data processing messages start, switch to processing stage
-                        return {
-                            ...prev,
-                            stage: 'processing',
-                            processedRows: newProcessedRows,
-                            errorCount: newErrorCount,
-                            progress: overallProgress,
-                            message: `Processing data: ${newProcessedRows} rows processed, ${newErrorCount} errors`
-                        };
-                    } else {
-                        return {
-                            ...prev,
-                            processedRows: newProcessedRows,
-                            errorCount: newErrorCount,
-                            progress: overallProgress,
-                            message: `Processing data: ${newProcessedRows} rows processed, ${newErrorCount} errors`
-                        };
+                        newStage = 'processing';
                     }
+                    if (totalProcessed >= prev.totalRows && prev.totalRows > 0) {
+                        newStage = 'complete';
+                        newMessage = 'Processing complete!';
+                    }
+                    return {
+                        ...prev,
+                        stage: newStage,
+                        processedRows: newProcessedRows,
+                        errorCount: newErrorCount,
+                        progress: overallProgress,
+                        message: newMessage
+                    };
                 });
-
-                if (message.data.processedRows + message.data.errorCount >= progressData.totalRows && progressData.totalRows > 0) {
-                    // If all rows are processed, mark as complete
-                    setProgressData(prev => ({ ...prev, stage: 'complete', progress: 100, message: 'Processing complete!' }));
-                    setTimeout(onComplete, 2000);
-                }
             } else if (message.type === 'error') {
                 setProgressData(prev => ({
                     ...prev,
@@ -92,7 +84,13 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
                 }));
             }
         }
-    }, [jobId, onComplete]);
+    }, [jobId]);
+
+    useEffect(() => {
+        if (progressData.stage === 'complete') {
+            onComplete();
+        }
+    }, [progressData.stage, onComplete]);
 
     const { isConnected } = useWebSocket({
         fileUploadId: jobId,

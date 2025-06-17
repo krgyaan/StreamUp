@@ -4,6 +4,7 @@ import db from '../db/index.js';
 import { fileUploads, processingErrors } from '../db/schema.js';
 import { fileUploadQueue } from '../queues/config.js';
 import { eq } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
 
 export const handleFileUpload = async (
   req: Request,
@@ -106,5 +107,75 @@ export const handleGetProcessingErrors = async (
   } catch (error) {
     console.error('[UploadController] Error fetching processing errors:', error);
     res.status(500).json({ error: 'Error fetching processing errors' });
+  }
+};
+
+export const handleGetJobSummary = async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
+    console.log('[UploadController] Received job summary request.');
+    try {
+      const { fileUploadId } = req.params;
+      console.log(`[UploadController] Fetching summary for fileUploadId: ${fileUploadId}`);
+
+      const fileUploadArr = await db.select().from(fileUploads).where(eq(fileUploads.id, fileUploadId)).limit(1);
+      const fileUpload = fileUploadArr[0];
+      if (!fileUpload) {
+        res.status(404).json({ error: 'File upload not found' });
+        return;
+      }
+
+      const errors = await db.select().from(processingErrors).where(eq(processingErrors.fileUploadId, fileUploadId));
+
+      // Calculate duration if possible
+      let duration = 0;
+      if (fileUpload.createdAt && fileUpload.updatedAt) {
+        duration = Math.floor((new Date(fileUpload.updatedAt).getTime() - new Date(fileUpload.createdAt).getTime()) / 1000);
+      }
+
+      res.json({
+        jobId: fileUpload.id,
+        status: fileUpload.status,
+        totalRows: fileUpload.totalRows || 0,
+        successfulRows: (fileUpload.processedRows || 0),
+        failedRows: (fileUpload.errorCount || 0),
+        duration,
+        startTime: fileUpload.createdAt ? new Date(fileUpload.createdAt).toISOString() : null,
+        endTime: fileUpload.updatedAt ? new Date(fileUpload.updatedAt).toISOString() : null,
+        fileName: fileUpload.originalName,
+        fileSize: fileUpload.size,
+        errors: errors.map(e => ({
+          row: e.rowNumber,
+          error: e.errorMessage,
+          data: e.rowData
+        }))
+      });
+    } catch (error) {
+      console.error('[UploadController] Error fetching job summary:', error);
+      res.status(500).json({ error: 'Error fetching job summary' });
+    }
+  };
+
+export const handleGetAllJobSummaries = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const jobs = await db.select().from(fileUploads).orderBy(desc(fileUploads.createdAt));
+    res.json(jobs.map(job => ({
+      jobId: job.id,
+      status: job.status,
+      fileName: job.originalName,
+      fileSize: job.size,
+      totalRows: job.totalRows || 0,
+      successfulRows: job.processedRows || 0,
+      failedRows: job.errorCount || 0,
+      startTime: job.createdAt ? new Date(job.createdAt).toISOString() : null,
+      endTime: job.updatedAt ? new Date(job.updatedAt).toISOString() : null,
+    })));
+  } catch (error) {
+    console.error('[UploadController] Error fetching all job summaries:', error);
+    res.status(500).json({ error: 'Error fetching job summaries' });
   }
 };

@@ -41,10 +41,10 @@ export function Header() {
                     </Button>
                     <Button
                         variant='link'
-                        onClick={() => navigate('/report')}
-                        className={`${isActive('/report') ? 'cursor-pointer underline' : 'cursor-pointer'}`}
+                        onClick={() => navigate('/store')}
+                        className={`${isActive('/store') ? 'cursor-pointer underline' : 'cursor-pointer'}`}
                     >
-                        Report
+                        Store
                     </Button>
                 </div>
 
