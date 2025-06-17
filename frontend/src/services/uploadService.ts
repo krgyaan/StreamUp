@@ -1,6 +1,5 @@
 import { default as axios } from 'axios';
 
-// Update this to match your backend URL and port
 const baseUrl = 'http://localhost:8080/api';
 
 interface UploadResponse {

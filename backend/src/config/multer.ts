@@ -1,6 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import { Request } from 'express';
+import fs from 'fs';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ALLOWED_MIME_TYPES = [
@@ -9,9 +10,15 @@ const ALLOWED_MIME_TYPES = [
   'application/vnd.ms-excel' // xls
 ];
 
+// Ensure uploads directory exists
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

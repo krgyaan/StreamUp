@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader, CheckCircle } from 'lucide-react';
+import { Loader, CheckCircle, XCircle } from 'lucide-react';
 import { useWebSocket } from '@/lib/useWebSocket';
 
 interface UploadProgressProps {
@@ -10,10 +10,11 @@ interface UploadProgressProps {
 }
 
 interface ProgressData {
-    stage: 'uploading' | 'parsing' | 'processing' | 'complete';
-    progress: number;
+    stage: 'uploading' | 'chunking' | 'processing' | 'complete' | 'error';
+    progress: number; // Overall progress percentage
     totalRows: number;
     processedRows: number;
+    errorCount: number;
     message: string;
 }
 
@@ -23,14 +24,72 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
         progress: 0,
         totalRows: 0,
         processedRows: 0,
+        errorCount: 0,
         message: 'Initializing upload...'
     });
+    const [totalChunks, setTotalChunks] = useState(0);
 
     const handleMessage = useCallback((message: any) => {
         if (message.fileUploadId === jobId) {
-            setProgressData(message.data);
-            if (message.data.stage === 'complete') {
-                setTimeout(onComplete, 2000);
+            if (message.type === 'file_progress') {
+                setProgressData(prev => ({
+                    ...prev,
+                    stage: message.data.status === 'chunked' ? 'chunking' : prev.stage,
+                    totalRows: message.data.totalRows || prev.totalRows,
+                    message: message.data.message || prev.message,
+                }));
+                if (message.data.totalChunks) {
+                    setTotalChunks(message.data.totalChunks);
+                }
+            } else if (message.type === 'chunk_progress') {
+                const currentProgress = totalChunks > 0 ? ((message.data.chunkIndex + 1) / totalChunks) * 100 : 0;
+                setProgressData(prev => ({
+                    ...prev,
+                    stage: 'chunking',
+                    progress: currentProgress,
+                    totalRows: message.data.totalRows || prev.totalRows,
+                    message: `Chunking file: ${message.data.chunkIndex + 1}/${message.data.totalChunks} chunks processed`,
+                }));
+                setTotalChunks(message.data.totalChunks);
+            } else if (message.type === 'processing_progress') {
+                setProgressData(prev => {
+                    const newProcessedRows = (prev.processedRows || 0) + (message.data.processedRows || 0);
+                    const newErrorCount = (prev.errorCount || 0) + (message.data.errorCount || 0);
+                    const totalProcessed = newProcessedRows + newErrorCount;
+                    const overallProgress = prev.totalRows > 0 ? (totalProcessed / prev.totalRows) * 100 : 0;
+
+                    if (prev.stage === 'chunking') {
+                        // Once data processing messages start, switch to processing stage
+                        return {
+                            ...prev,
+                            stage: 'processing',
+                            processedRows: newProcessedRows,
+                            errorCount: newErrorCount,
+                            progress: overallProgress,
+                            message: `Processing data: ${newProcessedRows} rows processed, ${newErrorCount} errors`
+                        };
+                    } else {
+                        return {
+                            ...prev,
+                            processedRows: newProcessedRows,
+                            errorCount: newErrorCount,
+                            progress: overallProgress,
+                            message: `Processing data: ${newProcessedRows} rows processed, ${newErrorCount} errors`
+                        };
+                    }
+                });
+
+                if (message.data.processedRows + message.data.errorCount >= progressData.totalRows && progressData.totalRows > 0) {
+                    // If all rows are processed, mark as complete
+                    setProgressData(prev => ({ ...prev, stage: 'complete', progress: 100, message: 'Processing complete!' }));
+                    setTimeout(onComplete, 2000);
+                }
+            } else if (message.type === 'error') {
+                setProgressData(prev => ({
+                    ...prev,
+                    stage: 'error',
+                    message: message.data.message || 'An error occurred',
+                }));
             }
         }
     }, [jobId, onComplete]);
@@ -43,9 +102,10 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
     const getStageText = (stage: string) => {
         switch (stage) {
             case 'uploading': return 'Uploading file...';
-            case 'parsing': return 'Parsing CSV structure...';
+            case 'chunking': return 'Chunking file...';
             case 'processing': return 'Processing rows...';
             case 'complete': return 'Processing complete!';
+            case 'error': return 'Error processing file';
             default: return 'Processing...';
         }
     };
@@ -53,6 +113,8 @@ const UploadProgress = ({ jobId, onComplete }: UploadProgressProps) => {
     const getStageIcon = (stage: string) => {
         if (stage === 'complete') {
             return <CheckCircle className="h-6 w-6 text-green-500" />;
+        } else if (stage === 'error') {
+            return <XCircle className="h-6 w-6 text-red-500" />;
         }
         return <Loader className="h-6 w-6 text-blue-500 animate-spin" />;
     };

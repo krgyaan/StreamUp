@@ -10,12 +10,24 @@ export const redis = new Redis({
 
 // Queue names
 export const QUEUE_NAMES = {
+  FILE_UPLOAD: 'file-upload',
   FILE_CHUNKING: 'file-chunking',
-  DATA_PROCESSING: 'data-processing'
+  DATA_PROCESSING: 'data-processing',
 } as const;
 
 // Queue configurations
-export const fileChunkQueue = new Queue(QUEUE_NAMES.FILE_CHUNKING, {
+export const fileUploadQueue = new Queue(QUEUE_NAMES.FILE_UPLOAD, {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 1000
+    }
+  }
+});
+
+export const fileChunkingQueue = new Queue(QUEUE_NAMES.FILE_CHUNKING, {
   connection: redis,
   defaultJobOptions: {
     attempts: 3,

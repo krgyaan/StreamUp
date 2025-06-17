@@ -2,11 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
-import { fileChunkWorker } from './src/queues/fileChunkProcessor.js';
-import { dataProcessingWorker } from './src/queues/dataProcessor.js';
+import { fileProcessingWorker } from './src/queues/fileProcessor.js';
 import uploadRouter from './src/routes/uploadRoutes.js';
 import WebSocketService from './src/services/websocketService.js';
-import { setWebSocketService } from './src/queues/fileChunkProcessor.js';
+import { setWebSocketService } from './src/queues/fileProcessor.js';
 import db from "./src/db/index.js"
 import { sql } from 'drizzle-orm';
 
@@ -69,7 +68,6 @@ server.listen(port, () => {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received. Closing workers...');
-  await fileChunkWorker.close();
-  await dataProcessingWorker.close();
+  await fileProcessingWorker.close();
   process.exit(0);
 });

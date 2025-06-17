@@ -44,13 +44,16 @@ export const processingErrors = pgTable('processing_errors', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-export const fileChunks = pgTable('file_chunks', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  fileUploadId: uuid('file_upload_id').references(() => fileUploads.id).notNull(),
-  chunkIndex: integer('chunk_index').notNull(),
-  status: text('status').notNull().default('pending'),
-  rowCount: integer('row_count').notNull(),
-  errorCount: integer('error_count').default(0),
+export const stores = pgTable('stores', {
+  id: serial('id').primaryKey(),
+  storeName: text('store_name').notNull(),
+  storeAddress: text('store_address').notNull(),
+  cityName: text('city_name').notNull(),
+  regionName: text('region_name').notNull(),
+  retailerName: text('retailer_name').notNull(),
+  storeType: text('store_type').notNull(),
+  storeLongitude: text('store_longitude').notNull(),
+  storeLatitude: text('store_latitude').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

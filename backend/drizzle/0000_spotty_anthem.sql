@@ -1,14 +1,3 @@
-CREATE TABLE "file_chunks" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"file_upload_id" uuid NOT NULL,
-	"chunk_index" integer NOT NULL,
-	"status" text DEFAULT 'pending' NOT NULL,
-	"row_count" integer NOT NULL,
-	"error_count" integer DEFAULT 0,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
 CREATE TABLE "file_uploads" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"original_name" text NOT NULL,

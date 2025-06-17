@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 interface WebSocketMessage {
-  type: 'file_progress' | 'chunk_progress' | 'error';
+  type: 'file_progress' | 'chunk_progress' | 'processing_progress' | 'error';
   fileUploadId: string;
   data: any;
 }
@@ -20,7 +20,7 @@ export const useWebSocket = ({ fileUploadId, onMessage }: UseWebSocketProps) => 
   const wsRef = useRef<WebSocket | null>(null);
   const onMessageRef = useRef(onMessage);
   const retryCountRef = useRef(0);
-  const retryTimeoutRef = useRef<NodeJS.Timeout>();
+  const retryTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Update the ref when onMessage changes
   useEffect(() => {
